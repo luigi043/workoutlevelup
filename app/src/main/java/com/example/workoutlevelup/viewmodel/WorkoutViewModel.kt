@@ -10,6 +10,7 @@ import com.example.workoutlevelup.model.WorkoutPlan
 import com.example.workoutlevelup.repository.WorkoutRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import android.database.sqlite.SQLiteException
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -50,7 +51,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
                 val longestStreak = calculateLongestStreak(completed.map { it.date })
                 val totalCompleted = completed.size
                 val currentLevel = determineLevel(totalCompleted)
-                val earnedBadges = computeEarnedBadges(totalCompleted, streak, currentLevel)
+                val earnedBadges = computeEarnedBadges(totalCompleted, longestStreak, currentLevel)
 
                 _uiState.update {
                     it.copy(
@@ -78,25 +79,40 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     fun completeWorkout(
         date: LocalDate = LocalDate.now(),
         totalTimeSeconds: Int,
-        completedExercises: List<String>
+        completedExercises: List<String>,
+        onSaved: () -> Unit,
+        onError: () -> Unit
     ) {
         viewModelScope.launch {
-            val dateStr = date.format(fmt)
-            val currentLevel = _uiState.value.currentLevel
-            val dayNumber = repository.getLatestDayNumber() + 1
-
-            val existing = repository.getWorkoutDayByDate(dateStr)
-            val updated = (existing ?: WorkoutDay(
-                date = dateStr,
-                dayNumber = dayNumber,
-                level = currentLevel,
-                workoutType = if (dayNumber % 2 == 0) 2 else 1
-            )).copy(
-                isCompleted = true,
-                totalTimeSeconds = totalTimeSeconds,
-                completedExercises = completedExercises.joinToString(",")
-            )
-            repository.upsert(updated)
+            if (date.isAfter(LocalDate.now())) {
+                onError()
+                return@launch
+            }
+            try {
+                val dateStr = date.toString()
+                val state = _uiState.value
+                val dayNumber = (state.allWorkoutDays.maxOfOrNull { it.dayNumber } ?: 0) + 1
+                val existing = repository.getWorkoutDayByDate(dateStr)
+                if (existing?.isCompleted != true) {
+                    val plan = getWorkoutPlanForDate(date)
+                    val updated = (existing ?: WorkoutDay(
+                        date = dateStr,
+                        dayNumber = dayNumber,
+                        level = state.currentLevel,
+                        workoutType = plan.type
+                    )).copy(
+                        isCompleted = true,
+                        totalTimeSeconds = totalTimeSeconds,
+                        completedExercises = completedExercises.joinToString(",")
+                    )
+                    if (existing == null) repository.saveCompletion(updated)
+                    else repository.update(updated)
+                }
+            } catch (error: SQLiteException) {
+                onError()
+                return@launch
+            }
+            onSaved()
         }
     }
 
@@ -112,17 +128,17 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     suspend fun getWorkoutForDate(date: LocalDate): WorkoutDay? =
         repository.getWorkoutDayByDate(date.format(fmt))
 
-    /** Earned badges based on current progress. */
+    /** Streak badges remain earned after the active streak ends. */
     private fun computeEarnedBadges(
         totalCompleted: Int,
-        streak: Int,
+        bestStreak: Int,
         level: Int
     ): Set<String> {
         val earned = mutableSetOf<String>()
         for (badge in WorkoutPlan.badges) {
             val dayOk = badge.requiredDays == 0 || totalCompleted >= badge.requiredDays
             val lvlOk = badge.requiredLevel == 0 || level >= badge.requiredLevel
-            val strkOk = badge.requiredStreak == 0 || streak >= badge.requiredStreak
+            val strkOk = bestStreak >= badge.requiredStreak
             if (dayOk && lvlOk && strkOk) earned.add(badge.id)
         }
         return earned
@@ -141,8 +157,10 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun getWorkoutPlanForDate(date: LocalDate): com.example.workoutlevelup.model.Workout {
-        val dayNumber = workoutDayMap.value[date.format(fmt)]?.dayNumber
-            ?: (_uiState.value.allWorkoutDays.size + 1)
-        return WorkoutPlan.getWorkoutForDay(dayNumber, _uiState.value.currentLevel)
+        val state = _uiState.value
+        val existing = workoutDayMap.value[date.toString()]
+        val dayNumber = existing?.dayNumber
+            ?: ((state.allWorkoutDays.maxOfOrNull { it.dayNumber } ?: 0) + 1)
+        return WorkoutPlan.getWorkoutForDay(dayNumber, existing?.level ?: state.currentLevel)
     }
 }

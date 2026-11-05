@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.work.*
 import com.example.workoutlevelup.MainActivity
 import java.util.concurrent.TimeUnit
@@ -22,6 +23,7 @@ class WorkoutReminderWorker(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return Result.success()
         sendReminderNotification()
         return Result.success()
     }
@@ -86,6 +88,7 @@ class WorkoutReminderWorker(
                 set(Calendar.HOUR_OF_DAY, hourOfDay)
                 set(Calendar.MINUTE, minute)
                 set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
             }
             // If the time today has already passed, schedule for tomorrow
             if (target.before(now)) target.add(Calendar.DAY_OF_YEAR, 1)
@@ -98,7 +101,7 @@ class WorkoutReminderWorker(
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_TAG,
-                ExistingPeriodicWorkPolicy.UPDATE,
+                ExistingPeriodicWorkPolicy.KEEP,
                 request
             )
         }

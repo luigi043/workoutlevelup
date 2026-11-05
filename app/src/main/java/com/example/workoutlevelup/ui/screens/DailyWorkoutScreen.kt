@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,27 +39,26 @@ fun DailyWorkoutScreen(
     val uiState by viewModel.uiState.collectAsState()
     val workoutMap by viewModel.workoutDayMap.collectAsState()
 
-    val fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
-    val existingLog = workoutMap[selectedDate.format(fmt)]
+    val existingLog = workoutMap[selectedDate.toString()]
     val alreadyDone = existingLog?.isCompleted == true
 
-    val workout = remember(selectedDate, uiState.currentLevel) {
+    val workout = remember(selectedDate, uiState.currentLevel, existingLog, uiState.totalCompleted) {
         viewModel.getWorkoutPlanForDate(selectedDate)
     }
 
     // Checked exercises state
-    val checkedExercises = remember(workout) {
-        mutableStateMapOf<String, Boolean>().apply {
-            workout.exercises.forEach { put(it.name, false) }
-        }
+    var checkedExercises by rememberSaveable(selectedDate.toString(), workout.title, workout.rounds) {
+        mutableStateOf(arrayListOf<String>())
     }
 
     // Elapsed timer state
-    var elapsedSeconds by remember { mutableIntStateOf(0) }
-    var isTimerRunning by remember { mutableStateOf(false) }
+    var elapsedSeconds by rememberSaveable(selectedDate.toString()) { mutableIntStateOf(0) }
+    var isTimerRunning by rememberSaveable(selectedDate.toString()) { mutableStateOf(false) }
+    var saving by remember(selectedDate) { mutableStateOf(false) }
+    var saveError by remember(selectedDate) { mutableStateOf(false) }
 
-    LaunchedEffect(isTimerRunning) {
-        if (isTimerRunning) {
+    LaunchedEffect(selectedDate, isTimerRunning, alreadyDone) {
+        if (isTimerRunning && !alreadyDone) {
             while (isTimerRunning) {
                 delay(1000)
                 elapsedSeconds++
@@ -66,7 +66,7 @@ fun DailyWorkoutScreen(
         }
     }
 
-    val allChecked = checkedExercises.values.all { it }
+    val allChecked = workout.exercises.all { it.name in checkedExercises }
 
     Column(
         modifier = Modifier
@@ -77,9 +77,10 @@ fun DailyWorkoutScreen(
         WorkoutTopBar(
             selectedDate = selectedDate,
             workout = workout,
-            elapsedSeconds = elapsedSeconds,
+            elapsedSeconds = existingLog?.takeIf { alreadyDone }?.totalTimeSeconds ?: elapsedSeconds,
             isTimerRunning = isTimerRunning,
-            onTimerToggle = { isTimerRunning = !isTimerRunning }
+            onTimerToggle = { isTimerRunning = !isTimerRunning },
+            timerEnabled = !alreadyDone && !saving
         )
 
         if (alreadyDone) {
@@ -100,8 +101,15 @@ fun DailyWorkoutScreen(
                 items(workout.exercises) { exercise ->
                     ExerciseCheckItem(
                         exercise = exercise,
-                        isChecked = checkedExercises[exercise.name] == true,
-                        onCheckedChange = { checkedExercises[exercise.name] = it }
+                        isChecked = exercise.name in checkedExercises,
+                        onCheckedChange = { checked ->
+                            if (!saving) {
+                                checkedExercises = ArrayList(
+                                    if (checked) checkedExercises + exercise.name
+                                    else checkedExercises - exercise.name
+                                )
+                            }
+                        }
                     )
                 }
 
@@ -109,6 +117,13 @@ fun DailyWorkoutScreen(
             }
 
             // ── Complete button ──────────────────────────────────────
+            if (saveError) {
+                Text(
+                    "Could not save your workout. Please try again.",
+                    color = DangerRed,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
             AnimatedVisibility(
                 visible = allChecked,
                 enter = fadeIn() + slideInVertically { it },
@@ -121,14 +136,24 @@ fun DailyWorkoutScreen(
                 ) {
                     Button(
                         onClick = {
+                            saving = true
+                            saveError = false
                             isTimerRunning = false
                             viewModel.completeWorkout(
                                 date = selectedDate,
                                 totalTimeSeconds = elapsedSeconds,
-                                completedExercises = checkedExercises.keys.toList()
+                                completedExercises = workout.exercises.map { it.name },
+                                onSaved = {
+                                    saving = false
+                                    onWorkoutComplete()
+                                },
+                                onError = {
+                                    saving = false
+                                    saveError = true
+                                }
                             )
-                            onWorkoutComplete()
                         },
+                        enabled = !saving,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
@@ -137,7 +162,7 @@ fun DailyWorkoutScreen(
                     ) {
                         Icon(Icons.Default.CheckCircle, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Mark Workout Complete!", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(if (saving) "Saving workout…" else "Mark Workout Complete!", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -151,7 +176,8 @@ private fun WorkoutTopBar(
     workout: Workout,
     elapsedSeconds: Int,
     isTimerRunning: Boolean,
-    onTimerToggle: () -> Unit
+    onTimerToggle: () -> Unit,
+    timerEnabled: Boolean
 ) {
     val levelPlan = WorkoutPlan.levels.firstOrNull { it.workouts.contains(workout) }
     val levelColor = when (levelPlan?.level ?: 1) {
@@ -200,7 +226,7 @@ private fun WorkoutTopBar(
                     fontWeight = FontWeight.Bold,
                     color = NeonBlue
                 )
-                IconButton(
+                if (timerEnabled) IconButton(
                     onClick = onTimerToggle,
                     modifier = Modifier
                         .size(36.dp)
@@ -209,7 +235,7 @@ private fun WorkoutTopBar(
                 ) {
                     Icon(
                         if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isTimerRunning) "Pause" else "Start",
+                        contentDescription = if (isTimerRunning) "Pause timer" else "Start timer",
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )

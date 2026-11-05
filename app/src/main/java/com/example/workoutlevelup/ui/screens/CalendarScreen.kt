@@ -2,6 +2,8 @@ package com.example.workoutlevelup.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,6 +42,7 @@ fun CalendarScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(DeepNavy)
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         // ── Header stats ────────────────────────────────────────────
@@ -149,7 +152,7 @@ private fun MonthCalendar(
                     Icon(Icons.Default.ChevronLeft, contentDescription = "Previous", tint = NeonBlue)
                 }
                 Text(
-                    text = yearMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault()) +
+                    text = yearMonth.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH) +
                             " ${yearMonth.year}",
                     style = MaterialTheme.typography.titleLarge,
                     color = Color.White,

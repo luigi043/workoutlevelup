@@ -9,7 +9,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -206,8 +205,7 @@ private fun BadgeCard(badge: Badge, isEarned: Boolean) {
 
     Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .alpha(if (isEarned) 1f else 0.45f),
+            .fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isEarned) SlateGray else DeepNavy
@@ -247,7 +245,7 @@ private fun BadgeCard(badge: Badge, isEarned: Boolean) {
                     Text(
                         "Unlock: $unlockHint",
                         fontSize = 11.sp,
-                        color = AccentPurple.copy(0.8f)
+                        color = NeutralGray
                     )
                 }
             }

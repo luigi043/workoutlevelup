@@ -19,7 +19,7 @@ val AccentPurple = Color(0xFF7C3AED)
 val GoldYellow   = Color(0xFFFFC107)
 val SuccessGreen = Color(0xFF4CAF50)
 val DangerRed    = Color(0xFFEF4444)
-val NeutralGray  = Color(0xFF6B7280)
+val NeutralGray  = Color(0xFFB7BFD0)
 
 // Level colors
 val Level1Color = Color(0xFF22C55E)   // green  – E-Rank Initiate

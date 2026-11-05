@@ -46,7 +46,7 @@ fun AppNavigation(viewModel: WorkoutViewModel = viewModel()) {
 
                 bottomNavItems.forEach { screen ->
                     val selected = currentDestination?.hierarchy?.any {
-                        it.route == screen.route || it.route?.startsWith("workout/") == true
+                        it.route == screen.route
                     } == true
 
                     NavigationBarItem(
@@ -63,7 +63,7 @@ fun AppNavigation(viewModel: WorkoutViewModel = viewModel()) {
                                     saveState = true
                                 }
                                 launchSingleTop = true
-                                restoreState = true
+                                restoreState = screen !is Screen.Workout
                             }
                         },
                         colors = NavigationBarItemDefaults.colors(
@@ -102,8 +102,10 @@ fun AppNavigation(viewModel: WorkoutViewModel = viewModel()) {
                     viewModel    = viewModel,
                     selectedDate = date,
                     onWorkoutComplete = {
-                        navController.navigate(Screen.Badges.route) {
-                            launchSingleTop = true
+                        if (navController.currentBackStackEntry == backStackEntry) {
+                            navController.navigate(Screen.Badges.route) {
+                                launchSingleTop = true
+                            }
                         }
                     }
                 )

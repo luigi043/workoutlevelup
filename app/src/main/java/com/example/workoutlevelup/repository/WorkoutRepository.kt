@@ -24,6 +24,8 @@ class WorkoutRepository(private val dao: WorkoutDayDao) {
 
     suspend fun upsert(workoutDay: WorkoutDay) = dao.insert(workoutDay) // REPLACE strategy
 
+    suspend fun saveCompletion(workoutDay: WorkoutDay) = dao.insertIfAbsent(workoutDay)
+
     /** Calculates the current streak (consecutive completed days). */
     suspend fun calculateStreak(): Int {
         val completedDates = dao.getCompletedWorkoutsSuspend()
