@@ -1,0 +1,9 @@
+{
+  "versionName": "1.0",
+  "applicationId": "com.example.workoutlevelup",
+  "bytes": 17398544,
+  "sha256": "e8ba60faa96c67781231680c8c47177bbbd5950251888afe863c173fb8480d83",
+  "file": "workout-level-up-debug.apk",
+  "nativeSourceCommit": "2a14f34ae16dd332c2e057aa13b9d5c6a84ee201",
+  "buildType": "debug"
+}

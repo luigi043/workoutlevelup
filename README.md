@@ -1,7 +1,8 @@
 # ⚔️ Workout Level Up — Android App
 
 A Solo Leveling-inspired workout tracker built with **Kotlin + Jetpack Compose**, featuring a Room database,
-ViewModel, a monthly calendar, a daily exercise checklist, a streak + badge system, and daily push notifications.
+ViewModel, a monthly calendar, a daily exercise checklist, streaks, badges, and local workout reminders.
+It is intended for individuals following the included training plan. Workout records are saved on the device.
 
 ---
 
@@ -70,37 +71,40 @@ app/
 
 ## 🔔 Notifications
 
-Daily reminders are scheduled automatically via **WorkManager** at **18:00** every day.
+The first daily reminder is scheduled for 18:00 local time through **WorkManager**.
+Android can defer background work, and a repeating reminder can drift from that time.
 To change the time, edit `WorkoutApplication.kt`:
 
 ```kotlin
 WorkoutReminderWorker.scheduleDailyReminder(context, hourOfDay = 18, minute = 0)
 ```
 
-On Android 13+ the app requests `POST_NOTIFICATIONS` permission on first launch.
+On Android 13+ the app asks for notification permission on first launch. Workout logging works if you decline.
+You can change the permission in Android Settings.
 
 ---
 
 ## 🚀 Setup
 
-1. Open the project root `WorkoutLevelUp/` in **Android Studio Hedgehog (2023.1.1+)**
-2. Let Gradle sync finish
-3. Run on an emulator or device running **API 24+**
+1. Open the repository root in Android Studio with support for Android Gradle Plugin 8.4.
+2. Select JDK 17 as the Gradle JDK and install Android SDK Platform 34.
+3. Sync Gradle and run on an emulator or device with API 24 or later.
 
-> **Min SDK:** 24 (Android 7.0)  
-> **Target SDK:** 34  
-> **Kotlin:** 1.9.20  
-> **Compose BOM:** 2024.02.00  
+From Windows PowerShell, run `./gradlew.bat :app:assembleDebug`. On macOS or Linux, run
+`./gradlew :app:assembleDebug`. The debug APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
+
+The minimum SDK is 24 (Android 7.0) and the target SDK is 34.
+The project uses Kotlin 1.9.24 and Compose BOM 2024.02.00.
 
 ---
 
-## 💡 System Rules
+## Verification
 
-- Never skip 2 days in a row
-- Increase reps by +5 every week
-- Take progress photos every 2 weeks
-- When you think you're done → **do 5 more reps**
+The [screen index](docs/verification/SCREEN-INDEX.md) separates emulator captures from browser screenshots.
+The [public Android screen gallery](https://workout-level-up-portfolio.vercel.app/gallery.html) shows the emulator captures.
+Try the [public interactive demo](https://workout-level-up-portfolio.vercel.app/). It is a browser simulation
+with separate local storage and no Android notification delivery.
 
-![img.png](img.png)
-![img_1.png](img_1.png)
-![img_2.png](img_2.png)
+The [debug APK](docs/verification/downloads/workout-level-up-debug.apk) is available for evaluation.
+Its [build manifest](docs/verification/downloads/build-info.json) records the source commit, byte length,
+and SHA-256 digest. See the [verification results](docs/verification/RESULTS.md) for coverage and limitations.
