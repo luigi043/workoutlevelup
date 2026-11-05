@@ -9,12 +9,16 @@ const { chromium } = await import(process.env.PLAYWRIGHT_MODULE
 const output = fileURLToPath(new URL('../docs/verification/browser/', import.meta.url));
 await mkdir(output, { recursive: true });
 const files = { '/': ['index.html', 'text/html'], '/app.js': ['app.js', 'text/javascript'],
-  '/plan.js': ['plan.js', 'text/javascript'], '/style.css': ['style.css', 'text/css'] };
+  '/plan.js': ['plan.js', 'text/javascript'], '/style.css': ['style.css', 'text/css'],
+  '/gallery.html': ['gallery.html', 'text/html'] };
 const server = createServer(async (request, response) => {
-  const file = files[request.url];
+  const galleryImage = /^\/gallery\/\d{2}-[a-z-]+\.jpg$/.test(request.url);
+  const file = files[request.url] ?? (galleryImage ? [request.url.slice(1), 'image/jpeg'] : null);
   if (!file) { response.writeHead(404).end(); return; }
-  response.writeHead(200, { 'Content-Type': file[1] });
-  response.end(await readFile(new URL(file[0], import.meta.url)));
+  try {
+    const data = await readFile(new URL(file[0], import.meta.url));
+    response.writeHead(200, { 'Content-Type': file[1] }).end(data);
+  } catch { response.writeHead(404).end(); }
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = process.env.DEMO_URL || `http://127.0.0.1:${server.address().port}`;
@@ -59,6 +63,36 @@ try {
     await page.close();
     console.log(`PASS ${name} ${width}×${height}: calendar, timer, checklist, completion, badge and reload.`);
   }
+  const page = await browser.newPage();
+  await page.goto(base);
+  await page.getByRole('button', { name: 'Today', exact: true }).click();
+  await page.getByRole('checkbox').first().check();
+  await page.getByRole('button', { name: 'Calendar', exact: true }).click();
+  let pastDay = page.locator('.month button:enabled:not([aria-current=date])').last();
+  if (!(await pastDay.count())) {
+    await page.getByRole('button', { name: 'Previous month' }).click();
+    pastDay = page.locator('.month button:enabled').last();
+  }
+  await pastDay.click();
+  for (const item of await page.getByRole('checkbox').all()) await item.check();
+  await page.getByRole('button', { name: 'Mark workout complete' }).click();
+  await page.getByRole('button', { name: 'Today', exact: true }).click();
+  await page.getByRole('heading', { name: 'Workout 2 – Cardio + Core' }).waitFor();
+  assert.equal(await page.locator('input:checked').count(), 0);
+  await page.close();
+  console.log('PASS dated drafts reset when an earlier completion changes the assigned workout.');
+  const gallery = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  await gallery.goto(base);
+  await gallery.getByRole('link', { name: 'Android screen gallery' }).tap();
+  await gallery.getByRole('heading', { name: 'Screen gallery' }).waitFor();
+  await gallery.waitForFunction(() => Array.from(document.querySelectorAll('.gallery img')).every(image => image.complete));
+  const images = await gallery.locator('.gallery img').evaluateAll(elements =>
+    elements.map(image => ({ loaded: image.complete && image.naturalWidth > 0, alt: image.alt })));
+  assert.equal(images.length, 10);
+  assert.ok(images.every(image => image.loaded && image.alt));
+  assert.ok(await gallery.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  await gallery.close();
+  console.log('PASS public Android screen gallery loads all ten captures at phone width.');
 } finally {
   await browser?.close();
   server.close();

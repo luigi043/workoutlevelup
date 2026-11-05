@@ -30,3 +30,7 @@ nav button[aria-current=page]{background:var(--blue);color:#0b1624;border-color:
 footer{font-size:.78rem;padding-bottom:calc(1rem + env(safe-area-inset-bottom))}
 a{color:var(--blue)}
 progress{width:100%;accent-color:var(--blue)}
+.gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}
+.gallery figure{margin:0}
+.gallery img{display:block;width:100%;height:auto;border:1px solid #4c577c;border-radius:9px}
+.gallery figcaption{font-size:.8rem;margin-top:.35rem;color:var(--muted)}

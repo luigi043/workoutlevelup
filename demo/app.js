@@ -58,7 +58,10 @@ function workout(progress) {
   const heading = `<p class="muted">${label(selected)}</p><h2>${plan.title}</h2>`;
   if (log) return heading + `<section class="card"><h3>Workout completed</h3><p>Time: ${time(log.seconds)}</p>
     <p>${plan.exercises.map(exercise => exercise.name).join(' · ')}</p></section>`;
-  const draft = drafts.get(selected) ?? { checked: new Set(), seconds: 0, started: 0 };
+  const savedDraft = drafts.get(selected);
+  const draft = savedDraft?.plan === plan
+    ? savedDraft
+    : { plan, checked: new Set(), seconds: 0, started: 0 };
   drafts.set(selected, draft);
   return heading + `<div class="row card"><span id="timer" class="timer">${time(elapsed(draft))}</span>
     <button id="toggle-timer">${draft.started ? 'Pause timer' : 'Start timer'}</button></div>
